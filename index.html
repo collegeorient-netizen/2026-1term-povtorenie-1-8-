@@ -1064,6 +1064,8 @@ body.lg-zh .E-l8 .ja, body.lg-zh .E-l8 .vi, body.lg-ja .E-l8 .zh, body.lg-ja .E-
 body, button, input, select, .opt, .qshow, .explain, .instr, .sechead{font-family:Tahoma,Verdana,'Segoe UI',sans-serif}
 .vi, .en, .sm{font-family:Tahoma,Verdana,'Segoe UI',sans-serif !important}
 .zh, .ja, .lgsw button:not([data-lg="vi"]){font-family:KaiTi,'楷體','標楷體','BiauKai','DFKai-SB','STKaiti','Kaiti TC','Kaiti SC',Tahoma,serif !important}
+#qopts .opt.ok{border-color:var(--mint-d);background:var(--mint-l)}
+#qopts .opt.no{border-color:var(--coral-d);background:var(--coral-l)}
 
 </style>
 </head>
@@ -1105,9 +1107,9 @@ body, button, input, select, .opt, .qshow, .explain, .instr, .sechead{font-famil
       </div>
       <div class="body">
         <div class="note">
-          Почти все слова — запись преподавателя. Где записи нет, читает голос устройства.<br>
-          Almost all words are the teacher’s recordings. Where there is no recording, the device voice reads.<br>
-          <span class="zh">大部分是老師的錄音；沒有錄音的地方由裝置的語音朗讀。</span><span class="ja">ほとんどは先生の録音です。録音がないところは端末の音声が読みます。</span><span class="vi">Hầu hết là giọng thu âm của giáo viên. Chỗ nào không có, giọng của thiết bị sẽ đọc.</span>
+          Где есть запись преподавателя (уроки 6–8 и часть слов 1–5), звучит она. Где записи нет, читает голос устройства.<br>
+          Where there is a teacher’s recording (lessons 6–8 and some words of 1–5), you hear it. Otherwise the device voice reads.<br>
+          <span class="zh">有老師錄音的地方（第6–8課和第1–5課的部分單字）播放老師的錄音；沒有錄音的地方由裝置的語音朗讀。</span><span class="ja">先生の録音があるところ（第6〜8課と第1〜5課の一部）は先生の声、ないところは端末の音声が読みます。</span><span class="vi">Chỗ nào có thu âm của thầy (bài 6–8 và một phần từ bài 1–5) thì nghe giọng thầy; chỗ nào không có, giọng của thiết bị sẽ đọc.</span>
         </div>
         <label>Скорость · Speed · <span class="zh">語速</span><span class="ja">速さ</span><span class="vi">Tốc độ</span></label>
         <div class="speeds" id="speeds">
@@ -1416,18 +1418,20 @@ const MODULES = [
  {id:'mix',   c:'var(--mint-d)',  n:20, t:['A','B','C','H','I','D','E','G','F','J','K','Q'], ru:'Всё вме́сте ⭐', en:'Everything mixed', zh:'全部混合', ja:'全部まぜて', vi:'Tất cả trộn lẫn'}
 ];
 
-function makeRound(t, used){
+function makeRound(t, used, opt){
   used.__s = used.__s || new Set(); const U=used.__s;
-  const fresh = (keys)=>{ const f=keys.filter(k=>!U.has(t+'|'+k)); const k=sample(f.length?f:keys,1)[0]; U.add(t+'|'+k); return k; };
-  if('ABC'.includes(t)){ const a=fresh(WL.map(x=>plain(x.w))); return {t, a, opts:wordOpts(a)}; }
-  if('HI'.includes(t)){ const a=fresh(TX.map(x=>plain(x.w))); return {t, a, opts:txOpts(a)}; }
-  if(t==='D'){ const a=plain(fresh(Object.keys(FLAGS))); return {t, a, opts:shuffle([a,...sample(Object.keys(COUNTRY).map(plain).filter(x=>x!==a),3)])}; }
-  if(t==='E'){ const city=fresh(CITIES.map(x=>plain(x.w))), o=CITIES.find(x=>plain(x.w)===city), a=plain(o.c);
+  const LS = opt && opt.les;                       /* экзамен: только слова указанных уроков */
+  const byL = (arr, kf) => { const ks=arr.filter(o=>!LS || LS.includes(o.l)).map(kf); return ks.length ? ks : null; };
+  const fresh = (keys)=>{ if(!keys) return null; const f=keys.filter(k=>!U.has(t+'|'+k)); const k=sample(f.length?f:keys,1)[0]; U.add(t+'|'+k); return k; };
+  if('ABC'.includes(t)){ const a=fresh(byL(WL,x=>plain(x.w))); if(!a) return null; return {t, a, opts:wordOpts(a)}; }
+  if('HI'.includes(t)){ const a=fresh(byL(TX,x=>plain(x.w))); if(!a) return null; return {t, a, opts:txOpts(a)}; }
+  if(t==='D'){ if(LS && !LS.includes(3)) return null; const a=plain(fresh(Object.keys(FLAGS))); return {t, a, opts:shuffle([a,...sample(Object.keys(COUNTRY).map(plain).filter(x=>x!==a),3)])}; }
+  if(t==='E'){ if(LS && !LS.includes(3)) return null; const city=fresh(CITIES.map(x=>plain(x.w))), o=CITIES.find(x=>plain(x.w)===city), a=plain(o.c);
     return {t, city, a, opts:shuffle([a,...sample(Object.keys(FLAGS).map(plain).filter(x=>x!==a),3)])}; }
-  if(t==='F'){ const a=fresh(PHR.map(o=>plain(o.p))); return {t, a, opts:fOpts(a)}; }
-  if(t==='G'){ const k=fresh(NUMB.flatMap((o,i)=>[i+'|0',i+'|1'])), [i,m]=k.split('|'), o=NUMB[+i];
+  if(t==='F'){ const a=fresh(byL(PHR,o=>plain(o.p))); if(!a) return null; return {t, a, opts:fOpts(a)}; }
+  if(t==='G'){ if(opt && opt.min3) return null; const k=fresh(NUMB.flatMap((o,i)=>(!LS||LS.includes(o.l))?[i+'|0',i+'|1']:[])); if(!k) return null; const kk=k, [i,m]=k.split('|'), o=NUMB[+i];
     return {t, i:+i, many:m==='1', opts:shuffle([plain(o.sg), plain(o.pl)])}; }
-  if('JKQ'.includes(t)){ const a=fresh(PH2.map(o=>plain(o.p))); return {t, a, opts:phOpts(a)}; }
+  if('JKQ'.includes(t)){ const a=fresh(byL(PH2,o=>plain(o.p))); if(!a) return null; return {t, a, opts:phOpts(a)}; }
 }
 function answerOf(r){ if(r.t==='G'){ const o=NUMB[r.i]; return plain(r.many?o.pl:o.sg); } return r.a; }
 const lessonTag = l => `<span class="ltag">Урок ${l} · ${L('第'+l+'課','第'+l+'課','Bài '+l)}</span>`;
@@ -1581,51 +1585,51 @@ const xclash = (BY)=> (a,b)=> a===b || ((BY[a]&&BY[a].x)||[]).includes(b) || ((B
 const wclash = xclash(WBY), tclash = xclash(TBY);
 
 const FORMS = [
- {k:'f1', pic:'🍎🍎🍎', s:'Э́то ___.', a:'я́блоки', o:['я́блоко','я́блоки','я́блок'],
+ {k:'f1', l:4, pic:'🍎🍎🍎', s:'Э́то ___.', a:'я́блоки', o:['я́блоко','я́блоки','я́блок'],
   zh:'很多個 → 複數：я́блоко → я́блоки', ja:'たくさん → 複数：я́блоко → я́блоки', vi:'nhiều → số nhiều: я́блоко → я́блоки', en:'many → plural'},
- {k:'f2', pic:'🍌', s:'Э́то ___.', a:'бана́н', o:['бана́н','бана́ны'],
+ {k:'f2', l:4, pic:'🍌', s:'Э́то ___.', a:'бана́н', o:['бана́н','бана́ны'],
   zh:'一個 → 單數', ja:'1本 → 単数', vi:'một → số ít', en:'one → singular'},
- {k:'f3', pic:DUR+DUR+DUR, s:'Э́то ___.', a:'дуриа́ны', o:['дуриа́н','дуриа́ны'],
+ {k:'f3', l:4, pic:DUR+DUR+DUR, s:'Э́то ___.', a:'дуриа́ны', o:['дуриа́н','дуриа́ны'],
   zh:'子音 + ы：дуриа́н → дуриа́ны', ja:'子音 + ы：дуриа́н → дуриа́ны', vi:'phụ âm + ы', en:'consonant + ы'},
- {k:'f4', pic:PELM, s:'Э́то ___.', a:'пельме́нь', o:['пельме́нь','пельме́ни'],
+ {k:'f4', l:2, pic:PELM, s:'Э́то ___.', a:'пельме́нь', o:['пельме́нь','пельме́ни'],
   zh:'一個 → пельме́нь；很多 → пельме́ни', ja:'1個 → пельме́нь、たくさん → пельме́ни', vi:'một → пельме́нь, nhiều → пельме́ни', en:'one → пельмень'},
- {k:'f5', pic:'🥟🥟🥟', s:'Э́то ___.', a:'варе́ники', o:['варе́ник','варе́ники'],
+ {k:'f5', l:2, pic:'🥟🥟🥟', s:'Э́то ___.', a:'варе́ники', o:['варе́ник','варе́ники'],
   zh:'к 後面寫 и：варе́ник → варе́ники', ja:'к のあとは и：варе́ники', vi:'sau к viết и', en:'after к write и'},
- {k:'f6', pic:'🥚', s:'Э́то ___.', a:'яйцо́', o:['яйцо́','я́йца','яи́ц'],
+ {k:'f6', l:5, pic:'🥚', s:'Э́то ___.', a:'яйцо́', o:['яйцо́','я́йца','яи́ц'],
   zh:'一個蛋 → яйцо́（оно́）', ja:'卵1個 → яйцо́（中性）', vi:'một quả → яйцо́', en:'one egg → яйцо (оно)'},
- {k:'f7', pic:'🥚🥚🥚', s:'Э́то ___.', a:'я́йца', o:['яйцо́','я́йца','яи́ц'],
+ {k:'f7', l:5, pic:'🥚🥚🥚', s:'Э́то ___.', a:'я́йца', o:['яйцо́','я́йца','яи́ц'],
   zh:'很多個蛋 → я́йца（重音在前面！）', ja:'たくさん → я́йца（アクセントは前！）', vi:'nhiều → я́йца (trọng âm đầu!)', en:'many → я́йца (stress moves!)'},
- {k:'f8', pic:BROTH, s:'___ бульо́н.', a:'Кури́ный', o:['Кури́ный','Кури́ная','Кури́ное'],
+ {k:'f8', l:5, pic:BROTH, s:'___ бульо́н.', a:'Кури́ный', o:['Кури́ный','Кури́ная','Кури́ное'],
   zh:'бульо́н 是 он → -ый', ja:'бульо́н は男性 → -ый', vi:'бульо́н là он → -ый', en:'бульон = он → -ый'},
- {k:'f9', pic:'🍜', s:'___ лапша́.', a:'Кури́ная', o:['Кури́ный','Кури́ная','Кури́ное'],
+ {k:'f9', l:5, pic:'🍜', s:'___ лапша́.', a:'Кури́ная', o:['Кури́ный','Кури́ная','Кури́ное'],
   zh:'лапша́ 是 она → -ая', ja:'лапша́ は女性 → -ая', vi:'лапша́ là она → -ая', en:'лапша = она → -ая'},
- {k:'f10', pic:'🐔🥚', s:'___ яйцо́.', a:'Кури́ное', o:['Кури́ный','Кури́ная','Кури́ное'],
+ {k:'f10', l:5, pic:'🐔🥚', s:'___ яйцо́.', a:'Кури́ное', o:['Кури́ный','Кури́ная','Кури́ное'],
   zh:'яйцо́ 是 оно → -ое', ja:'яйцо́ は中性 → -ое', vi:'яйцо́ là оно → -ое', en:'яйцо = оно → -ое'},
- {k:'f11', pic:ZEF, s:'Зефи́р — из ___.', a:'я́блок', o:['я́блоко','я́блоки','я́блок'],
+ {k:'f11', l:3, pic:ZEF, s:'Зефи́р — из ___.', a:'я́блок', o:['я́блоко','я́блоки','я́блок'],
   zh:'из + 屬格：用蘋果做的', ja:'из + 生格：りんごから', vi:'из + cách 2: làm từ táo', en:'из + genitive: made from apples'},
- {k:'f12', pic:'🍜', s:'Лапша́ из ___.', a:'ку́рицы', o:['ку́рица','ку́рицы','кури́ная'],
+ {k:'f12', l:5, pic:'🍜', s:'Лапша́ из ___.', a:'ку́рицы', o:['ку́рица','ку́рицы','кури́ная'],
   zh:'ку́рица → из ку́рицы（-а → -ы）', ja:'ку́рица → из ку́рицы（-а → -ы）', vi:'ку́рица → из ку́рицы', en:'ку́рица → из ку́рицы'},
- {k:'f13', pic:ZEFCH, s:'Зефи́р в ___.', a:'шокола́де', o:['шокола́д','шокола́де'],
+ {k:'f13', l:3, pic:ZEFCH, s:'Зефи́р в ___.', a:'шокола́де', o:['шокола́д','шокола́де'],
   zh:'зефи́р в шокола́де＝巧克力口味', ja:'зефи́р в шокола́де＝チョコがけ', vi:'зефи́р в шокола́де = phủ sô cô la', en:'зефир в шоколаде = in chocolate'},
- {k:'f14', pic:'🍎', s:'Я́блоки из ___. (Япо́ния)', a:'Япо́нии', o:['Япо́ния','Япо́нии','Япо́нию'],
+ {k:'f14', l:4, pic:'🍎', s:'Я́блоки из ___. (Япо́ния)', a:'Япо́нии', o:['Япо́ния','Япо́нии','Япо́нию'],
   zh:'-я → -и：из Япо́нии', ja:'-я → -и：из Япо́нии', vi:'-я → -и', en:'-я → -и: из Японии'},
- {k:'f15', pic:DUR, s:'Дуриа́н из ___. (Вьетна́м)', a:'Вьетна́ма', o:['Вьетна́м','Вьетна́ма','Вьетна́му'],
+ {k:'f15', l:5, pic:DUR, s:'Дуриа́н из ___. (Вьетна́м)', a:'Вьетна́ма', o:['Вьетна́м','Вьетна́ма','Вьетна́му'],
   zh:'子音 + а：из Вьетна́ма', ja:'子音 + а：из Вьетна́ма', vi:'phụ âm + а', en:'consonant + а: из Вьетнама'},
- {k:'f16', pic:PAST, s:'Пастила́ из ___. (Росси́я)', a:'Росси́и', o:['Росси́я','Росси́и','Росси́ю'],
+ {k:'f16', l:4, pic:PAST, s:'Пастила́ из ___. (Росси́я)', a:'Росси́и', o:['Росси́я','Росси́и','Росси́ю'],
   zh:'-я → -и：из Росси́и', ja:'-я → -и：из Росси́и', vi:'-я → -и', en:'-я → -и: из России'},
- {k:'f17', pic:FLOUR+'➕🥚', s:'Мука́ + я́йца = ___.', a:'те́сто', o:['те́сто','лапша́','суп'],
+ {k:'f17', l:5, pic:FLOUR+'➕🥚', s:'Мука́ + я́йца = ___.', a:'те́сто', o:['те́сто','лапша́','суп'],
   zh:'麵粉＋蛋＝麵團', ja:'小麦粉＋卵＝生地', vi:'bột + trứng = bột nhào', en:'flour + eggs = dough'},
- {k:'f18', pic:'🐔➡️'+BROTH, s:'Ку́рица → ___.', a:'бульо́н', o:['бульо́н','те́сто','са́хар'],
+ {k:'f18', l:5, pic:'🐔➡️'+BROTH, s:'Ку́рица → ___.', a:'бульо́н', o:['бульо́н','те́сто','са́хар'],
   zh:'雞肉煮成高湯', ja:'鶏からブイヨン', vi:'gà → nước dùng', en:'chicken → broth'}
 ];
 const FBY = Object.fromEntries(FORMS.map(o=>[o.k,o]));
 const DISH = [
- {d:'кури́ная лапша́', e:'🍜', ok:['ку́рица','мука́','яйцо́','бульо́н','те́сто','лапша́'], no:[]},
- {d:'зефи́р',     e:ZEF,   ok:['я́блоко','са́хар'], no:['яйцо́']},
- {d:'пастила́',   e:PAST,  ok:['я́блоко','са́хар'], no:['яйцо́']},
- {d:'зефи́р в шокола́де', e:ZEFCH, ok:['я́блоко','са́хар','шокола́д'], no:['яйцо́']},
- {d:'пельме́ни',  e:PELM+PELM+PELM, ok:['те́сто','мука́'], no:['яйцо́']},
- {d:'варе́ники',  e:'🥟🥟🥟', ok:['те́сто','мука́'], no:['яйцо́','са́хар','я́блоко']},
+ {d:'кури́ная лапша́', l:5, e:'🍜', ok:['ку́рица','мука́','яйцо́','бульо́н','те́сто','лапша́'], no:[]},
+ {d:'зефи́р', l:3,     e:ZEF,   ok:['я́блоко','са́хар'], no:['яйцо́']},
+ {d:'пастила́', l:3,   e:PAST,  ok:['я́блоко','са́хар'], no:['яйцо́']},
+ {d:'зефи́р в шокола́де', l:3, e:ZEFCH, ok:['я́блоко','са́хар','шокола́д'], no:['яйцо́']},
+ {d:'пельме́ни', l:2,  e:PELM+PELM+PELM, ok:['те́сто','мука́'], no:['яйцо́']},
+ {d:'варе́ники', l:2,  e:'🥟🥟🥟', ok:['те́сто','мука́'], no:['яйцо́','са́хар','я́блоко']},
 ];
 const INGR = ['ку́рица','мука́','яйцо́','бульо́н','те́сто','лапша́','я́блоко','са́хар','шокола́д','бана́н','дуриа́н'].map(plain);
 const DBY = Object.fromEntries(DISH.map(o=>[plain(o.d),o]));
@@ -1684,25 +1688,29 @@ const MODULES = [
  {id:'mix',   c:'var(--coral)',   n:20, t:['A','G','B','R','H','J','C','I','K','Q'], ru:'Всё вме́сте ⭐', en:'Everything mixed', zh:'全部混合', ja:'全部まぜて', vi:'Tất cả trộn lẫn'}
 ];
 
-function makeRound(t, used){
+function makeRound(t, used, opt){
   if(!used.__f){ used.__f={seen:{}, ans:new Set()}; }
   seen=used.__f.seen; usedAns=used.__f.ans;
-  const WK = W.map(o=>plain(o.w)), TK = TX.map(o=>plain(o.w)), PK = PH.map(o=>plain(o.p));
-  if('ABC'.includes(t)){ const a=pickAns(WK,t); return {t, a, opts:shuffle([a,...pickDistr(WK,a,3,wclash)])}; }
-  if('HI'.includes(t)){ const a=pickAns(TK,t); return {t, a, opts:shuffle([a,...pickDistr(TK,a,3,tclash)])}; }
-  if(t==='G'){ const k=pickAns(FORMS.map(o=>o.k),'G'), o=FBY[k]; usedAns.add('*'+plain(o.a)); return {t, k, a:plain(o.a), opts:shuffle(o.o.map(plain))}; }
+  const LS = opt && opt.les, okL = o => !LS || LS.includes(o.l);
+  const WK0 = W.map(o=>plain(o.w)), TK0 = TX.map(o=>plain(o.w)), PK0 = PH.map(o=>plain(o.p));
+  /* правильный ответ — только из уроков LS; обманки — из всех слов */
+  const WK = W.filter(okL).map(o=>plain(o.w)), TK = TX.filter(okL).map(o=>plain(o.w)), PK = PH.filter(okL).map(o=>plain(o.p));
+  if('ABC'.includes(t)){ if(!WK.length) return null; const a=pickAns(WK,t); return {t, a, opts:shuffle([a,...pickDistr(WK0,a,3,wclash)])}; }
+  if('HI'.includes(t)){ if(!TK.length) return null; const a=pickAns(TK,t); return {t, a, opts:shuffle([a,...pickDistr(TK0,a,3,tclash)])}; }
+  if(t==='G'){ const FK=FORMS.filter(o=>okL(o) && (!(opt&&opt.min3) || o.o.length>=3)).map(o=>o.k); if(!FK.length) return null; const k=pickAns(FK,'G'), o=FBY[k]; usedAns.add('*'+plain(o.a)); return {t, k, a:plain(o.a), opts:shuffle(o.o.map(plain))}; }
   if(t==='R'){
-    let pool = DPAIRS.filter(p=>!usedAns.has('R'+p) && !usedAns.has('Ri'+p.split('|')[1]) && !usedAns.has('*'+p.split('|')[1]));
-    if(!pool.length) pool = DPAIRS.filter(p=>!usedAns.has('R'+p) && !usedAns.has('Ri'+p.split('|')[1]));
-    if(!pool.length) pool = DPAIRS.filter(p=>!usedAns.has('R'+p));
-    if(!pool.length) pool = DPAIRS;
+    const DP = DPAIRS.filter(p=>okL(DBY[p.split('|')[0]])); if(!DP.length) return null;
+    let pool = DP.filter(p=>!usedAns.has('R'+p) && !usedAns.has('Ri'+p.split('|')[1]) && !usedAns.has('*'+p.split('|')[1]));
+    if(!pool.length) pool = DP.filter(p=>!usedAns.has('R'+p) && !usedAns.has('Ri'+p.split('|')[1]));
+    if(!pool.length) pool = DP.filter(p=>!usedAns.has('R'+p));
+    if(!pool.length) pool = DP;
     const dc = d => (usedAns.has('Rd'+d)?100:0) + DBY[d].ok.length;
     pool = shuffle(pool).sort((x,y)=>{ const [d1,i1]=x.split('|'),[d2,i2]=y.split('|'); return (dc(d1)*10+cnt(i1))-(dc(d2)*10+cnt(i2)); });
     const pair = pool[0], [d,a] = pair.split('|'); usedAns.add('R'+pair); usedAns.add('Ri'+a); usedAns.add('Rd'+d); usedAns.add('*'+a); bump(d); bump(a);
     const D = DBY[d], bad = new Set([...D.ok, ...D.no].map(plain));
     return {t, d, a, opts:shuffle([a, ...pickDistr(INGR.filter(k=>!bad.has(k)), a, 3, ()=>false)])};
   }
-  if('JKQ'.includes(t)){ const a=pickAns(PK,t); return {t, a, opts:shuffle([a,...pickDistr(PK,a,3,pclash)])}; }
+  if('JKQ'.includes(t)){ if(!PK.length) return null; const a=pickAns(PK,t); return {t, a, opts:shuffle([a,...pickDistr(PK0,a,3,pclash)])}; }
 }
 const answerOf = r => r.a;
 const lessonTag = l => `<span class="ltag">Урок ${l} · ${L('第'+l+'課','第'+l+'課','Bài '+l)}</span>`;
@@ -2023,7 +2031,7 @@ function makeRound(t, used){
   }
   if(t==='H'){ const id=pick(DLG.map(o=>o.id),used,'d:'); return {t, a:id, opts:shuffle([0,1,2,3])}; }
   if(t==='Q'){
-    const id=pick(DLG.map(o=>o.id),used,'d:'), heard = Math.random()<0.4 ? 0 : 1+Math.floor(Math.random()*3);
+    const id=pick(DLG.map(o=>o.id),used,'d:'), heard = 0;   /* всегда звучит правильная реплика; неверные — только среди вариантов */
     return {t, a:id, heard, opts:shuffle([0,1,2,3])};
   }
   if(t==='I'||t==='J'){ const a=pick(TXA.map(o=>plain(o.w)),used); return {t, a, opts:txOpts(a)}; }
